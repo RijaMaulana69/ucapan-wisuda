@@ -12,29 +12,42 @@ export default function BackgroundStars() {
     if (!ctx) return;
 
     let animationFrameId;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    let dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    const setupCanvasSize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    setupCanvasSize();
 
     const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      setupCanvasSize();
     };
 
     window.addEventListener("resize", handleResize);
 
     // 1. Floating Aurora Blobs (Dinamis, bergerak hidup & berubah warna halus)
     const auroraBlobs = [
-      { x: width * 0.25, y: height * 0.25, r: 350, color: "rgba(225, 29, 72, 0.08)", vx: 0.35, vy: 0.2 },
-      { x: width * 0.75, y: height * 0.45, r: 420, color: "rgba(168, 85, 247, 0.06)", vx: -0.25, vy: 0.3 },
-      { x: width * 0.4, y: height * 0.75, r: 380, color: "rgba(239, 68, 68, 0.07)", vx: 0.2, vy: -0.3 },
-      { x: width * 0.85, y: height * 0.85, r: 300, color: "rgba(244, 63, 94, 0.06)", vx: -0.3, vy: -0.2 },
+      { x: width * 0.25, y: height * 0.25, r: 350, color: "rgba(225, 29, 72, 0.08)", vx: 0.3, vy: 0.18 },
+      { x: width * 0.75, y: height * 0.45, r: 420, color: "rgba(168, 85, 247, 0.06)", vx: -0.22, vy: 0.25 },
+      { x: width * 0.4, y: height * 0.75, r: 380, color: "rgba(239, 68, 68, 0.07)", vx: 0.18, vy: -0.25 },
+      { x: width * 0.85, y: height * 0.85, r: 300, color: "rgba(244, 63, 94, 0.06)", vx: -0.25, vy: -0.18 },
     ];
 
     // 2. Sparkling Stars (Bintang berkelip tajam & lembut)
-    const stars = Array.from({ length: 70 }, () => ({
+    const stars = Array.from({ length: 65 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      radius: Math.random() * 1.6 + 0.4,
+      radius: Math.random() * 1.5 + 0.4,
       alpha: Math.random() * 0.8 + 0.1,
       speed: Math.random() * 0.02 + 0.008,
       direction: Math.random() > 0.5 ? 1 : -1,
@@ -42,13 +55,13 @@ export default function BackgroundStars() {
     }));
 
     // 3. Floating Confetti / Firefly Embers (Butiran cahaya naik ke atas melayang hidup)
-    const embers = Array.from({ length: 28 }, () => ({
+    const embers = Array.from({ length: 26 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      size: Math.random() * 2.2 + 0.8,
-      speedY: Math.random() * 0.6 + 0.2,
-      speedX: (Math.random() - 0.5) * 0.4,
-      opacity: Math.random() * 0.6 + 0.2,
+      size: Math.random() * 2 + 0.8,
+      speedY: Math.random() * 0.5 + 0.2,
+      speedX: (Math.random() - 0.5) * 0.35,
+      opacity: Math.random() * 0.6 + 0.25,
       color: Math.random() > 0.5 ? "251, 191, 36" : "244, 63, 94", // amber / rose
       wobble: Math.random() * Math.PI * 2,
     }));
@@ -57,7 +70,10 @@ export default function BackgroundStars() {
     let shootingStar = null;
     let nextShootingStarTime = Date.now() + Math.random() * 3000 + 2000;
 
+    let frameCount = 0;
+
     const render = () => {
+      frameCount++;
       ctx.clearRect(0, 0, width, height);
 
       // --- Gambar Aurora Background yang Hidup ---
@@ -93,7 +109,7 @@ export default function BackgroundStars() {
         ctx.fill();
       });
 
-      // --- Gambar Embers Cahaya Melayang Naik (Fireflies / Stardust) ---
+      // --- Gambar Embers Cahaya Melayang Naik (Fireflies / Stardust) dengan GPU Halo Murni ---
       embers.forEach((ember) => {
         ember.y -= ember.speedY;
         ember.wobble += 0.02;
@@ -105,13 +121,17 @@ export default function BackgroundStars() {
           ember.x = Math.random() * width;
         }
 
+        // Halo luar bercahaya lembut (Akselerasi GPU murni tanpa beban shadowBlur)
+        ctx.beginPath();
+        ctx.arc(ember.x, ember.y, ember.size * 2.4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${ember.color}, ${ember.opacity * 0.28})`;
+        ctx.fill();
+
+        // Inti titik berkilau tajam
         ctx.beginPath();
         ctx.arc(ember.x, ember.y, ember.size, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${ember.color}, ${ember.opacity})`;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = `rgba(${ember.color}, 0.8)`;
         ctx.fill();
-        ctx.shadowBlur = 0;
       });
 
       // --- Komet / Shooting Star Melintas ---
@@ -122,7 +142,7 @@ export default function BackgroundStars() {
           y: Math.random() * (height * 0.4),
           length: Math.random() * 80 + 50,
           speed: Math.random() * 6 + 6,
-          angle: (Math.PI / 4) + (Math.random() - 0.5) * 0.2, // ~45 deg
+          angle: (Math.PI / 4) + (Math.random() - 0.5) * 0.2,
           alpha: 1,
         };
       }

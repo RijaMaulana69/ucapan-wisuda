@@ -43,6 +43,8 @@ export default function TimelineSection({ onOpenPhoto }) {
   const currentProgressRef = useRef(0);
   const activeNodesRef = useRef([]);
   const animFrameIdRef = useRef(null);
+  const isLoopRunningRef = useRef(false);
+  const nodeCentersRef = useRef([]);
 
   // Memicu ripple shockwave saat garis diklik
   const triggerRipple = (y) => {
@@ -203,28 +205,27 @@ export default function TimelineSection({ onOpenPhoto }) {
     }
   }, [spiralPath, dimensions.height]);
 
-  // ENGINE LERP 60FPS / 120FPS DENGAN REQUEST ANIMATION FRAME (BUTTERY SMOOTH)
+  // ENGINE LERP 60FPS / 120FPS DENGAN CACHED MILESTONE (ZERO LAYOUT THRASHING)
   useEffect(() => {
     let isRunning = true;
 
-    // Scroll listener: merekam progress scroll linimasa langsung saat scroll ke bawah
-    const handleScroll = () => {
+    // Cache posisi Y setiap milestone sekali saja (Zero Layout Thrashing)
+    const cacheNodePositions = () => {
       if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const windowH = window.innerHeight;
-      
-      // Ketika pengguna scroll ke bawah, garis merah langsung mengalir mengikuti pandangan mata
-      const focalY = windowH * 0.65;
-      const progressPx = focalY - rect.top;
-      const totalPx = rect.height - windowH * 0.2;
-
-      let ratio = totalPx > 0 ? progressPx / totalPx : 0;
-      ratio = Math.max(0, Math.min(1, ratio));
-      targetProgressRef.current = ratio;
+      const cRect = containerRef.current.getBoundingClientRect();
+      const nodes = containerRef.current.querySelectorAll("[data-node]");
+      const list = [];
+      nodes.forEach((node) => {
+        const nRect = node.getBoundingClientRect();
+        list.push({
+          id: node.getAttribute("data-node"),
+          y: nRect.top - cRect.top + nRect.height / 2,
+        });
+      });
+      nodeCentersRef.current = list;
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
+    cacheNodePositions();
 
     // Loop animasi lerp halus berkesinambungan
     const renderLoop = () => {
@@ -232,45 +233,43 @@ export default function TimelineSection({ onOpenPhoto }) {
 
       const target = targetProgressRef.current;
       const cur = currentProgressRef.current;
-      const next = cur + (target - cur) * 0.14;
-      currentProgressRef.current = Math.abs(target - next) < 0.0001 ? target : next;
+      const next = cur + (target - cur) * 0.16;
+      const isSettled = Math.abs(target - next) < 0.0002;
+      currentProgressRef.current = isSettled ? target : next;
 
       const progress = currentProgressRef.current;
-      const cX = dimensions.width / 2;
       const containerH = containerRef.current ? containerRef.current.offsetHeight : dimensions.height;
       const currentY = containerH * progress;
       const isLineActive = progress > 0.002;
 
-      // 1. Update Benang Putih Mengikat (Silky Smooth Dashoffset)
+      // 1. Update Benang Putih Mengikat
       if (whitePathRef.current && totalLengthRef.current > 0) {
         const offset = totalLengthRef.current * (1 - progress);
         whitePathRef.current.style.strokeDashoffset = `${offset}`;
         whitePathRef.current.style.opacity = isLineActive ? "0.95" : "0";
       }
 
-      // 2. Update Garis Merah Tengah: BERWARNA MERAH MENYALA AKTIF KETIKA SCROLL KE BAWAH
+      // 2. Update Garis Merah Tengah
       if (redLineElRef.current) {
         redLineElRef.current.style.height = `${isLineActive ? currentY : 0}px`;
         redLineElRef.current.style.opacity = isLineActive ? "1" : "0";
       }
 
-      // 3. Update Ujung Kepala Energi Merah Modern (Nexus Tip)
+      // 3. Update Ujung Kepala Energi Merah Modern (Akselerasi GPU Hardware translate3d)
       if (redHeadElRef.current) {
-        redHeadElRef.current.style.transform = `translate(-50%, ${currentY}px)`;
+        redHeadElRef.current.style.transform = `translate3d(-50%, ${currentY}px, 0)`;
         redHeadElRef.current.style.opacity = isLineActive ? "1" : "0";
       }
 
-      // 4. Update Milestone Active State (Tersinkronisasi Sempurna dengan Ujung Garis Merah)
-      if (containerRef.current) {
-        const nodes = containerRef.current.querySelectorAll("[data-node]");
+      // 4. Update Milestone Active State dari Cache (Komputasi 0 microsecond, bebas reflow)
+      const centers = nodeCentersRef.current;
+      if (centers && centers.length > 0) {
         const currentActive = [];
-        nodes.forEach((node) => {
-          const nRect = node.getBoundingClientRect();
-          const nodeCenterY = nRect.top - containerRef.current.getBoundingClientRect().top + nRect.height / 2;
-          if (currentY >= nodeCenterY - 20) {
-            currentActive.push(node.getAttribute("data-node"));
+        for (let i = 0; i < centers.length; i++) {
+          if (currentY >= centers[i].y - 20) {
+            currentActive.push(centers[i].id);
           }
-        });
+        }
 
         const prevActive = activeNodesRef.current;
         if (
@@ -282,13 +281,42 @@ export default function TimelineSection({ onOpenPhoto }) {
         }
       }
 
+      // Jika pergerakan sudah berhenti sempurna, tidurkan loop untuk menghemat 100% baterai & CPU HP
+      if (isSettled) {
+        isLoopRunningRef.current = false;
+        return;
+      }
+
       animFrameIdRef.current = requestAnimationFrame(renderLoop);
     };
 
-    animFrameIdRef.current = requestAnimationFrame(renderLoop);
+    // Scroll listener: merekam progress scroll linimasa langsung saat scroll ke bawah
+    const handleScroll = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const windowH = window.innerHeight;
+      
+      const focalY = windowH * 0.65;
+      const progressPx = focalY - rect.top;
+      const totalPx = rect.height - windowH * 0.2;
+
+      let ratio = totalPx > 0 ? progressPx / totalPx : 0;
+      ratio = Math.max(0, Math.min(1, ratio));
+      targetProgressRef.current = ratio;
+
+      // Bangunkan render loop jika sedang istirahat
+      if (!isLoopRunningRef.current) {
+        isLoopRunningRef.current = true;
+        animFrameIdRef.current = requestAnimationFrame(renderLoop);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
 
     return () => {
       isRunning = false;
+      isLoopRunningRef.current = false;
       window.removeEventListener("scroll", handleScroll);
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     };

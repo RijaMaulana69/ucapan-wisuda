@@ -76,10 +76,10 @@ export default function MusicPlayer({ isVisible }) {
 
       {/* CONTAINER PEMUTAR MUSIK: MORPHING SUPER SMOOTH DENGAN DIMENSI EKSPLISIT */}
       <div
-        className={`fixed z-50 select-none overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`fixed z-50 select-none overflow-hidden transform-gpu transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isMinimized
-            ? "bottom-4 right-4 w-14 h-14 rounded-full bg-zinc-950/90 border border-white/20 shadow-2xl shadow-black/80 backdrop-blur-2xl cursor-pointer hover:scale-105 active:scale-95"
-            : "bottom-3 sm:bottom-5 right-3 sm:right-5 w-[255px] sm:w-[280px] h-[375px] sm:h-[395px] rounded-[1.6rem] bg-zinc-950/85 border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.85)] backdrop-blur-3xl text-white"
+            ? "bottom-4 left-4 w-14 h-14 rounded-full bg-zinc-950/90 border border-white/20 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer hover:scale-105 active:scale-95"
+            : "bottom-3 sm:bottom-5 left-3 sm:left-5 w-[255px] sm:w-[280px] h-[375px] sm:h-[395px] rounded-[1.6rem] bg-zinc-950/85 border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:backdrop-blur-2xl text-white"
         }`}
         onClick={() => {
           if (isMinimized) setIsMinimized(false);
