@@ -33,7 +33,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id" className={`${jakarta.variable} ${playfair.variable} ${kalam.variable} ${caveat.variable}`}>
+    <html lang="id" className={`scroll-smooth ${jakarta.variable} ${playfair.variable} ${kalam.variable} ${caveat.variable}`}>
       <body className="bg-[#090a0f] text-zinc-100 font-sans selection:bg-rose-500/30 selection:text-rose-300 min-h-screen overflow-x-hidden antialiased">
         {children}
       </body>

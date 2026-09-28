@@ -30,6 +30,7 @@ export default function TimelineSection({ onOpenPhoto }) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0, isDesktop: false });
   const [spiralPath, setSpiralPath] = useState("");
   const [activeNodes, setActiveNodes] = useState([]);
+  const [revealedChapters, setRevealedChapters] = useState(["1"]);
   const [hoverLineInfo, setHoverLineInfo] = useState(null);
   const [ripples, setRipples] = useState([]);
 
@@ -105,6 +106,33 @@ export default function TimelineSection({ onOpenPhoto }) {
       clearTimeout(t3);
     };
   }, [updateSize]);
+
+  // OBSERVER SCROLL REVEAL HALUS & SINEMATIK SAAT DISCROLL KE BAWAH (HP & DESKTOP)
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const rows = containerRef.current.querySelectorAll("[data-timeline-row]");
+    if (!rows || rows.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute("data-chapter-id");
+            if (id) {
+              setRevealedChapters((prev) => (prev.includes(id) ? prev : [...prev, id]));
+            }
+          }
+        });
+      },
+      {
+        rootMargin: "0px 0px -8% 0px",
+        threshold: 0.12,
+      }
+    );
+
+    rows.forEach((row) => observer.observe(row));
+    return () => observer.disconnect();
+  }, [dimensions.height]);
 
   // Generate kurva benang putih alami yang MENGIKAT KARTU saat discroll ke bawah
   useEffect(() => {
@@ -548,6 +576,7 @@ export default function TimelineSection({ onOpenPhoto }) {
       <div className="space-y-16 sm:space-y-20 md:space-y-24 relative z-10">
         {chapters.map((chap) => {
           const isActive = activeNodes.includes(chap.id);
+          const isRevealed = revealedChapters.includes(chap.id);
 
           return (
             <div
@@ -564,7 +593,9 @@ export default function TimelineSection({ onOpenPhoto }) {
                 onClick={() => scrollToChapter(chap.id)}
                 title={`Klik untuk melompat ke ${chap.tag}`}
                 data-node={chap.id}
-                className={`absolute left-1/2 -translate-x-1/2 top-0 md:top-1/2 md:-translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-bold text-xs tracking-wider z-20 cursor-pointer select-none transition-all duration-300 shadow-xl group hover:scale-125 hover:border-red-400 active:scale-95 ${
+                className={`absolute left-1/2 -translate-x-1/2 top-0 md:top-1/2 md:-translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-bold text-xs tracking-wider z-20 cursor-pointer select-none transition-all duration-500 shadow-xl group hover:scale-125 hover:border-red-400 active:scale-95 ${
+                  isRevealed ? "opacity-100 scale-100" : "opacity-0 scale-75"
+                } ${
                   isActive
                     ? "bg-zinc-950/95 border-2 border-red-500 text-white scale-110 shadow-red-500/60 shadow-lg ring-4 ring-red-500/25"
                     : "bg-zinc-950/80 backdrop-blur-md border border-white/15 text-zinc-400 hover:text-white hover:border-white/40"
@@ -577,10 +608,14 @@ export default function TimelineSection({ onOpenPhoto }) {
                 </div>
               </button>
 
-              {/* Teks Card Grid */}
+              {/* Teks Card Grid (Animasi Smooth Slide Up Reveal) */}
               <div
                 data-timeline-card
-                className={`w-full md:w-1/2 pt-12 md:pt-0 ${
+                className={`w-full md:w-1/2 pt-12 md:pt-0 transform-gpu transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isRevealed
+                    ? "opacity-100 translate-y-0 scale-100"
+                    : "opacity-0 translate-y-10 scale-95"
+                } ${
                   chap.reverse
                     ? "md:pl-10 text-center md:text-left"
                     : "md:pr-10 text-center md:text-right"
@@ -589,8 +624,8 @@ export default function TimelineSection({ onOpenPhoto }) {
                 <div
                   className={`bg-zinc-900/85 backdrop-blur-xl border rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-500 relative group overflow-hidden max-w-sm sm:max-w-md mx-auto md:max-w-none ${
                     isActive
-                      ? "border-red-500/50 shadow-2xl shadow-red-950/40 -translate-y-1.5 ring-1 ring-red-500/30 bg-gradient-to-br from-zinc-900/95 via-zinc-900/90 to-zinc-950/95"
-                      : "border-white/5 opacity-75 translate-y-0"
+                      ? "border-red-500/60 shadow-[0_12px_35px_-8px_rgba(239,68,68,0.35)] -translate-y-1.5 ring-1 ring-red-500/35 bg-gradient-to-br from-zinc-900/95 via-zinc-900/90 to-zinc-950/95"
+                      : "border-white/10 opacity-80 translate-y-0"
                   }`}
                 >
                   <div
@@ -623,10 +658,14 @@ export default function TimelineSection({ onOpenPhoto }) {
                 </div>
               </div>
 
-              {/* Foto Card Grid (Interaktif dengan Pembesaran Halus) */}
+              {/* Foto Card Grid (Animasi Smooth Float Up dengan Stagger Delay) */}
               <div
                 data-timeline-photo
-                className={`w-full md:w-1/2 ${
+                className={`w-full md:w-1/2 transform-gpu transition-all duration-700 delay-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isRevealed
+                    ? "opacity-100 translate-y-0 scale-100"
+                    : "opacity-0 translate-y-12 scale-95"
+                } ${
                   chap.reverse ? "md:pr-10" : "md:pl-10"
                 }`}
               >
@@ -634,8 +673,8 @@ export default function TimelineSection({ onOpenPhoto }) {
                   onClick={() => onOpenPhoto(chap.image, chap.title)}
                   className={`cursor-pointer rounded-2xl overflow-hidden p-2 bg-zinc-950/90 border transition-all duration-500 group max-w-sm sm:max-w-md mx-auto md:max-w-none ${
                     isActive
-                      ? "border-red-500/40 shadow-2xl shadow-black/90 -translate-y-1.5 ring-1 ring-red-500/20"
-                      : "border-white/5 opacity-75 translate-y-0"
+                      ? "border-red-500/50 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.85),0_0_20px_rgba(239,68,68,0.2)] -translate-y-1.5 ring-1 ring-red-500/25"
+                      : "border-white/10 opacity-80 translate-y-0"
                   }`}
                 >
                   <div className="w-full max-w-[260px] sm:max-w-[300px] md:max-w-[340px] mx-auto aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 relative">
