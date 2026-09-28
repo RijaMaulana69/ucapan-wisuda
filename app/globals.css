@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #ef4444;
+}
+
+body {
+  background-color: #090a0f;
+  color: #f4f4f5;
+  overflow-x: hidden;
+}
+
+/* Sembunyikan badge logo Next.js (N) di kiri bawah */
+nextjs-portal,
+[data-nextjs-toast],
+[data-nextjs-dev-tools-button],
+div[data-nextjs-toast-wrapper],
+#__next-build-watcher {
+  display: none !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090a0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+@keyframes threadHaloPulse {
+  0% { r: 5; opacity: 0.8; stroke: rgba(220, 38, 38, 0.6); }
+  50% { r: 10; opacity: 0.2; stroke: rgba(220, 38, 38, 0.4); }
+  100% { r: 5; opacity: 0.8; stroke: rgba(220, 38, 38, 0.6); }
+}
+
+.thread-head-halo {
+  animation: threadHaloPulse 2.5s ease-in-out infinite;
+}
+
+/* Animasi Aliran Energi Aktif Garis Merah (Living Laser Pulse) */
+@keyframes redLaserFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -88;
+  }
+}
+
+.animate-red-flow {
+  animation: redLaserFlow 1.4s linear infinite;
+}
+
+@keyframes redHeadPulse {
+  0% {
+    r: 4;
+    opacity: 1;
+    stroke-width: 2px;
+  }
+  50% {
+    r: 14;
+    opacity: 0.25;
+    stroke-width: 1px;
+  }
+  100% {
+    r: 4;
+    opacity: 1;
+    stroke-width: 2px;
+  }
+}
+
+.animate-red-head-pulse {
+  animation: redHeadPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sealShimmer {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(225, 29, 72, 0.45), 0 0 35px rgba(244, 63, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(225, 29, 72, 0.85), 0 0 55px rgba(244, 63, 94, 0.5);
+  }
+}
+
+.animate-seal-shimmer {
+  animation: sealShimmer 2s ease-in-out infinite;
+}
+
+@keyframes modernEnvFloat {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-7px); }
+}
+
+.animate-env-float {
+  animation: modernEnvFloat 3.8s ease-in-out infinite alternate;
+}
+
+/* Animasi Membuka Surat Mulus / Realistic Paper Unfold */
+@keyframes letterOpen {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) scaleY(0.2) scaleX(0.92) rotateX(15deg);
+    filter: blur(4px);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(6px) scaleY(1.03) scaleX(1.01) rotateX(-2deg);
+    filter: blur(0px);
+  }
+  80% {
+    transform: translateY(-2px) scaleY(0.99) scaleX(1) rotateX(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1) scaleX(1) rotateX(0deg);
+    filter: blur(0px);
+  }
+}
+
