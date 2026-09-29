@@ -34,7 +34,7 @@ export default function TimelineSection({ onOpenPhoto }) {
   const [hoverLineInfo, setHoverLineInfo] = useState(null);
   const [ripples, setRipples] = useState([]);
 
-  // Direct DOM Refs untuk rendering 60/120 FPS tanpa lag di HP
+  // Direct DOM Refs untuk rendering 60/120 FPS tanpa lag di semua OS
   const whitePathRef = useRef(null);
   const redLineElRef = useRef(null);
   const redHeadElRef = useRef(null);
@@ -48,7 +48,7 @@ export default function TimelineSection({ onOpenPhoto }) {
   const nodeCentersRef = useRef([]);
   
   // Cache posisi container untuk 0ns layout queries saat scroll (mencegah Layout Thrashing di HP)
-  const containerMetricsRef = useRef({ top: 0, height: 0, isDesktop: false, spineX: 32 });
+  const containerMetricsRef = useRef({ top: 0, height: 0, isDesktop: false, spineX: 24 });
 
   // Memicu ripple shockwave saat garis diklik
   const triggerRipple = (y) => {
@@ -77,7 +77,7 @@ export default function TimelineSection({ onOpenPhoto }) {
     const w = containerRef.current.offsetWidth;
     const h = containerRef.current.offsetHeight;
     const isDesk = window.innerWidth >= 768;
-    const spineX = isDesk ? w / 2 : (window.innerWidth < 640 ? 24 : 32);
+    const spineX = isDesk ? w / 2 : (window.innerWidth < 400 ? 20 : 28);
 
     const cRect = containerRef.current.getBoundingClientRect();
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
@@ -110,7 +110,7 @@ export default function TimelineSection({ onOpenPhoto }) {
 
   useEffect(() => {
     updateSize();
-    window.addEventListener("resize", updateSize);
+    window.addEventListener("resize", updateSize, { passive: true });
 
     let ro = null;
     if (typeof ResizeObserver !== "undefined" && containerRef.current) {
@@ -209,19 +209,15 @@ export default function TimelineSection({ onOpenPhoto }) {
           waypoints.push({ x: cX + 16, y: nodeRelY + 12 });
         }
       } else {
-        // MOBILE SPLINE: Mengalir anggun di sisi kiri tanpa zig-zag ekstrem yang membuat lag
+        // MOBILE SPLINE: Mengalir anggun di sisi kiri tanpa zig-zag ekstrem
         if (idx === 0) {
           waypoints.push({ x: cX, y: Math.max(0, nodeRelY - 35) });
         }
 
-        // 1. Melewati node milestone
         waypoints.push({ x: cX, y: nodeRelY });
-        // 2. Melengkung halus merangkul tepi kartu
-        waypoints.push({ x: cX + 14, y: nodeRelY + 30 });
-        // 3. Mengalir lembut di samping kartu
+        waypoints.push({ x: cX + 14, y: nodeRelY + 28 });
         waypoints.push({ x: cX + 8, y: cMidY });
-        // 4. Menutup lengkungan di bawah kartu menuju node berikutnya
-        waypoints.push({ x: cX, y: cBottom + 18 });
+        waypoints.push({ x: cX, y: cBottom + 16 });
       }
     });
 
@@ -298,7 +294,7 @@ export default function TimelineSection({ onOpenPhoto }) {
       }
     };
 
-    // Fungsi Render Frame yang sinkron dengan display refresh rate
+    // Fungsi Render Frame yang sinkron dengan display refresh rate (60Hz / 90Hz / 120Hz)
     const renderFrame = () => {
       if (!isRunning) return;
       isTickingRef.current = false;
@@ -307,8 +303,6 @@ export default function TimelineSection({ onOpenPhoto }) {
       const cur = currentProgressRef.current;
       const isMobile = !containerMetricsRef.current.isDesktop;
 
-      // Di HP: respon seketika (1:1 instan) agar garis TIDAK PERNAH tertinggal saat scrolling!
-      // Di Desktop: lerp halus 0.35 untuk nuansa sinematik
       if (isMobile) {
         currentProgressRef.current = target;
         updateVisuals(target);
@@ -332,7 +326,6 @@ export default function TimelineSection({ onOpenPhoto }) {
       if (!metrics || metrics.height === 0) return;
 
       const windowH = window.innerHeight;
-      // Titik pemicu fokus (55% di mobile untuk respon cepat seketika)
       const focalY = scrollY + (metrics.isDesktop ? windowH * 0.65 : windowH * 0.55);
       const progressPx = focalY - metrics.top;
       const totalPx = metrics.height - (metrics.isDesktop ? windowH * 0.2 : windowH * 0.1);
@@ -348,7 +341,6 @@ export default function TimelineSection({ onOpenPhoto }) {
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    // Panggil sekali untuk sinkronisasi posisi awal
     handleScroll();
 
     return () => {
@@ -455,10 +447,10 @@ export default function TimelineSection({ onOpenPhoto }) {
   };
 
   return (
-    <section ref={containerRef} className="relative z-10 max-w-4xl mx-auto px-3 sm:px-6 pt-6 sm:pt-12 pb-36">
-      {/* ── TRACK GARIS VERTIKAL LINIMASA (RESPONSIF: KIRI DI MOBILE, TENGAH DI DESKTOP) ── */}
+    <section ref={containerRef} className="relative z-10 max-w-4xl mx-auto px-2 sm:px-6 pt-6 sm:pt-12 pb-36 overflow-hidden sm:overflow-visible">
+      {/* ── TRACK GARIS VERTIKAL LINIMASA (RESPONSIF SEMUA LAYAR HP & DESKTOP) ── */}
       <div
-        className="absolute top-0 bottom-24 left-[24px] sm:left-[32px] md:left-1/2 -translate-x-1/2 pointer-events-none z-0 w-[4px] sm:w-[5px]"
+        className="absolute top-0 bottom-24 left-[20px] min-[400px]:left-[28px] md:left-1/2 -translate-x-1/2 pointer-events-none z-0 w-[4px] sm:w-[5px]"
       >
         {/* Track Abu-Abu Dasar */}
         <div className="absolute inset-0 w-full bg-zinc-800/80 rounded-full" />
@@ -482,19 +474,17 @@ export default function TimelineSection({ onOpenPhoto }) {
           style={{ opacity: 0 }}
         >
           <div className="relative flex items-center justify-center">
-            {/* Gelombang Radar Merah */}
             <div className="absolute w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-500/40 animate-ping" />
-            {/* Cincin Berpendar Presisi */}
             <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-red-500 bg-red-950/90 shadow-[0_0_12px_#ef4444] animate-pulse" />
-            {/* Titik Inti Cahaya Putih */}
             <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-white shadow-[0_0_6px_#ffffff]" />
           </div>
         </div>
       </div>
 
-      {/* SVG LINIMASA: BENANG PUTIH MENGIKAT KARTU & EFEK GELOMBANG INTERAKTIF */}
+      {/* SVG LINIMASA: BENANG PUTIH MENGIKAT KARTU & EFEK GELOMBANG */}
       {dimensions.height > 0 && (
         <svg
+          xmlns="http://www.w3.org/2000/svg"
           className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
           viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
         >
@@ -505,6 +495,7 @@ export default function TimelineSection({ onOpenPhoto }) {
               fill="none"
               stroke="rgba(255, 255, 255, 0.08)"
               strokeWidth="1.2"
+              vectorEffect="non-scaling-stroke"
             />
           )}
 
@@ -518,6 +509,7 @@ export default function TimelineSection({ onOpenPhoto }) {
               strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
               style={{
                 opacity: 0.95,
                 willChange: "stroke-dashoffset",
@@ -594,7 +586,7 @@ export default function TimelineSection({ onOpenPhoto }) {
                 onClick={() => scrollToChapter(chap.id)}
                 title={`Klik untuk melompat ke ${chap.tag}`}
                 data-node={chap.id}
-                className={`absolute left-[24px] sm:left-[32px] md:left-1/2 -translate-x-1/2 top-0 md:top-1/2 md:-translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm tracking-wider z-20 cursor-pointer select-none transform-gpu transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-2xl group hover:scale-125 hover:border-red-400 active:scale-95 ${
+                className={`absolute left-[20px] min-[400px]:left-[28px] md:left-1/2 -translate-x-1/2 top-0 md:top-1/2 md:-translate-y-1/2 w-9 h-9 min-[400px]:w-10 min-[400px]:h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm tracking-wider z-20 cursor-pointer select-none transform-gpu transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-2xl group hover:scale-125 hover:border-red-400 active:scale-95 ${
                   isRevealed ? "opacity-100 scale-100" : "opacity-0 scale-75"
                 } ${
                   isActive
@@ -603,15 +595,14 @@ export default function TimelineSection({ onOpenPhoto }) {
                 }`}
               >
                 <span>0{chap.id}</span>
-                {/* Tooltip Mini Hover di Node */}
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden md:group-hover:flex items-center px-2.5 py-1 rounded-md bg-zinc-950 border border-red-500/70 text-white text-[10px] font-mono whitespace-nowrap shadow-xl pointer-events-none">
                   Lompat ke Babak 0{chap.id}
                 </div>
               </button>
 
-              {/* Konten Kartu Babak: Di Mobile tampil luas di kanan garis (pl-14/pl-16), di Desktop simetris */}
+              {/* Konten Kartu Babak: Di Mobile tampil luas di kanan garis (pl-12/pl-16), di Desktop simetris */}
               <div
-                className={`pl-14 sm:pl-16 md:pl-0 w-full flex flex-col md:flex-row items-center gap-4 sm:gap-6 md:gap-12 ${
+                className={`pl-11 min-[400px]:pl-14 sm:pl-16 md:pl-0 w-full flex flex-col md:flex-row items-center gap-4 sm:gap-6 md:gap-12 ${
                   chap.reverse ? "md:flex-row-reverse" : ""
                 }`}
               >

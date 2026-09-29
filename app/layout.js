@@ -28,7 +28,18 @@ const caveat = Caveat({
 
 export const metadata = {
   title: "The Graduation Journey — Agnesh Juliasih, S.Pd.",
-  description: "Tribute wisuda kelulusan Agnesh Juliasih, S.Pd.",
+  description: "Tribute wisuda kelulusan Agnesh Juliasih, S.Pd. Sebuah catatan dedikasi dan perjalanan meraih gelar sarjana.",
+  icons: {
+    icon: "/icon.svg",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#090a0f",
 };
 
 export default function RootLayout({ children }) {

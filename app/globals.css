@@ -4,12 +4,30 @@
 
 :root {
   --color-primary: #ef4444;
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sat: env(safe-area-inset-top, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+  background-color: #090a0f;
+  scroll-behavior: smooth;
 }
 
 body {
   background-color: #090a0f;
   color: #f4f4f5;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
 }
 
 /* Sembunyikan badge logo Next.js (N) di kiri bawah */
@@ -21,7 +39,7 @@ div[data-nextjs-toast-wrapper],
   display: none !important;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar Modern & Elegan untuk Semua Browser */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -36,6 +54,18 @@ div[data-nextjs-toast-wrapper],
   background: #3f3f46;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+
+/* GPU Rendering Hint Helper */
+.transform-gpu {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 @keyframes threadHaloPulse {
   0% { r: 5; opacity: 0.8; stroke: rgba(220, 38, 38, 0.6); }
   50% { r: 10; opacity: 0.2; stroke: rgba(220, 38, 38, 0.4); }
@@ -46,42 +76,7 @@ div[data-nextjs-toast-wrapper],
   animation: threadHaloPulse 2.5s ease-in-out infinite;
 }
 
-/* Animasi Aliran Energi Aktif Garis Merah (Living Laser Pulse) */
-@keyframes redLaserFlow {
-  0% {
-    stroke-dashoffset: 0;
-  }
-  100% {
-    stroke-dashoffset: -88;
-  }
-}
-
-.animate-red-flow {
-  animation: redLaserFlow 1.4s linear infinite;
-}
-
-@keyframes redHeadPulse {
-  0% {
-    r: 4;
-    opacity: 1;
-    stroke-width: 2px;
-  }
-  50% {
-    r: 14;
-    opacity: 0.25;
-    stroke-width: 1px;
-  }
-  100% {
-    r: 4;
-    opacity: 1;
-    stroke-width: 2px;
-  }
-}
-
-.animate-red-head-pulse {
-  animation: redHeadPulse 1.5s ease-in-out infinite;
-}
-
+/* Animasi Segel Stempel Lilin */
 @keyframes sealShimmer {
   0%, 100% {
     box-shadow: 0 0 16px rgba(225, 29, 72, 0.45), 0 0 35px rgba(244, 63, 94, 0.2);
@@ -108,21 +103,18 @@ div[data-nextjs-toast-wrapper],
 @keyframes letterOpen {
   0% {
     opacity: 0;
-    transform: translateY(-40px) scaleY(0.2) scaleX(0.92) rotateX(15deg);
-    filter: blur(4px);
+    transform: translateY(-24px) scaleY(0.4) scaleX(0.95);
   }
-  50% {
-    opacity: 0.9;
-    transform: translateY(6px) scaleY(1.03) scaleX(1.01) rotateX(-2deg);
-    filter: blur(0px);
-  }
-  80% {
-    transform: translateY(-2px) scaleY(0.99) scaleX(1) rotateX(1deg);
+  60% {
+    opacity: 0.95;
+    transform: translateY(4px) scaleY(1.02) scaleX(1);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scaleY(1) scaleX(1) rotateX(0deg);
-    filter: blur(0px);
+    transform: translateY(0) scaleY(1) scaleX(1);
   }
 }
 
+.animate-letterOpen {
+  animation: letterOpen 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

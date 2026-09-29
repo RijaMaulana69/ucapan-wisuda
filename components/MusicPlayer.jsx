@@ -11,10 +11,21 @@ export default function MusicPlayer({ isVisible }) {
   const [duration, setDuration] = useState(0);
   const audioRef = useRef(null);
 
+  // Mencoba memutar audio saat terlihat, dengan fallback aman untuk kebijakan Autoplay iOS/Android
   useEffect(() => {
     if (isVisible && audioRef.current) {
       audioRef.current.volume = 0.6;
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch(() => {
+            // Browser mobile (iOS/Android) memblokir autoplay otomatis tanpa interaksi
+            setIsPlaying(false);
+          });
+      }
     }
   }, [isVisible]);
 
@@ -74,24 +85,26 @@ export default function MusicPlayer({ isVisible }) {
         onLoadedMetadata={handleTimeUpdate}
       />
 
-      {/* 1. FLOATING MINI VINYL BUTTON (ULTRA SMOOTH GPU ACCELERATED) */}
+      {/* 1. FLOATING MINI VINYL BUTTON DENGAN SAFE AREA iOS */}
       <div
-        className={`fixed bottom-4 left-4 z-50 w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-zinc-950/90 border border-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(239,68,68,0.35)] backdrop-blur-xl cursor-pointer select-none transform-gpu transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-110 active:scale-95 ${
+        className={`fixed z-50 w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-zinc-950/90 border border-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.85),0_0_20px_rgba(239,68,68,0.35)] backdrop-blur-xl cursor-pointer select-none transform-gpu transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-110 active:scale-95 ${
           isMinimized
             ? "scale-100 opacity-100 pointer-events-auto"
             : "scale-50 opacity-0 pointer-events-none"
         }`}
-        style={{ willChange: "transform, opacity" }}
+        style={{
+          bottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+          left: "max(1rem, env(safe-area-inset-left, 1rem))",
+          willChange: "transform, opacity",
+        }}
         onClick={() => setIsMinimized(false)}
         title="Ketuk untuk membuka pemutar musik"
       >
         <div className="relative w-full h-full p-1 flex items-center justify-center group">
-          {/* Subtle Pulse Ring saat musik berputar */}
           {isPlaying && (
             <div className="absolute inset-0 rounded-full border border-red-500/50 animate-ping [animation-duration:2.5s] pointer-events-none" />
           )}
 
-          {/* Vinyl Image Rotating */}
           <img
             src="/Taylor Swift.jpg"
             alt="Mini Vinyl"
@@ -118,14 +131,18 @@ export default function MusicPlayer({ isVisible }) {
         </div>
       </div>
 
-      {/* 2. EXPANDED MODERN MUSIC CARD (FLUID SPRING SCALE & CLEAN GLASS BLUR) */}
+      {/* 2. EXPANDED MODERN MUSIC CARD DENGAN SAFE AREA iOS & ANDROID */}
       <div
-        className={`fixed bottom-3 sm:bottom-5 left-3 sm:left-5 z-50 w-[calc(100vw-2.5rem)] max-w-[275px] sm:max-w-[290px] rounded-[1.75rem] bg-zinc-950/90 border border-white/15 shadow-[0_25px_65px_rgba(0,0,0,0.95),0_0_30px_rgba(244,63,94,0.18)] backdrop-blur-2xl text-white p-3.5 sm:p-4 select-none transform-gpu origin-bottom-left transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col justify-between ${
+        className={`fixed z-50 w-[calc(100vw-2rem)] max-w-[270px] sm:max-w-[290px] rounded-[1.75rem] bg-zinc-950/90 border border-white/15 shadow-[0_25px_65px_rgba(0,0,0,0.95),0_0_30px_rgba(244,63,94,0.18)] backdrop-blur-2xl text-white p-3.5 sm:p-4 select-none transform-gpu origin-bottom-left transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col justify-between ${
           !isMinimized
             ? "scale-100 opacity-100 translate-y-0 pointer-events-auto"
             : "scale-75 opacity-0 translate-y-6 pointer-events-none"
         }`}
-        style={{ willChange: "transform, opacity" }}
+        style={{
+          bottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
+          left: "max(0.75rem, env(safe-area-inset-left, 0.75rem))",
+          willChange: "transform, opacity",
+        }}
       >
         {/* Header Bar dengan Tombol Minimize */}
         <div className="flex items-center justify-between pb-2 px-0.5">

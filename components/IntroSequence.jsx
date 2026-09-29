@@ -93,7 +93,7 @@ export default function IntroSequence({ onFinish }) {
             <div className="relative flex items-center justify-center">
               <span
                 key={count}
-                className="text-8xl sm:text-9xl md:text-[10.5rem] font-light font-mono text-white tracking-widest leading-none drop-shadow-[0_4px_30px_rgba(255,255,255,0.25)] animate-scaleUp"
+                className="text-7xl sm:text-9xl md:text-[10.5rem] font-light font-mono text-white tracking-widest leading-none drop-shadow-[0_4px_30px_rgba(255,255,255,0.25)] animate-scaleUp"
               >
                 0{count}
               </span>
@@ -104,7 +104,7 @@ export default function IntroSequence({ onFinish }) {
         {/* TAHAP 2: TIPOGRAFI UCAPAN — TEKS PUTIH CLEAN */}
         {stage === "greeting" && (
           <div className="flex flex-col items-center justify-center text-center px-4 animate-fadeIn py-8">
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-serifTitle font-normal text-white tracking-tight leading-[1.2]">
+            <h1 className="text-3xl sm:text-6xl md:text-7xl font-serifTitle font-normal text-white tracking-tight leading-[1.25]">
               Selamat Wisuda, <br />
               <span className="font-bold text-white">
                 Agnesh Juliasih, S.Pd.
@@ -113,27 +113,27 @@ export default function IntroSequence({ onFinish }) {
           </div>
         )}
 
-        {/* TAHAP 3: AMPLOP SURAT MEWAH BERSIH & MODERN (MINIMALIST LUXURY STATIONERY) */}
+        {/* TAHAP 3: AMPLOP SURAT MEWAH BERSIH & MODERN */}
         {stage === "envelope" && (
-          <div className="w-full flex flex-col items-center [perspective:1400px]">
+          <div className="w-full flex flex-col items-center [perspective:1400px] [-webkit-perspective:1400px]">
             {!showFullLetter && (
               <div
-                className={`relative w-full max-w-[340px] sm:max-w-[420px] transition-all duration-700 cursor-pointer select-none ${
+                className={`relative w-full max-w-[300px] sm:max-w-[420px] transition-all duration-700 cursor-pointer select-none ${
                   !isOpening ? "animate-env-float" : ""
                 } ${envelopeDismissed ? "translate-y-12 scale-90 opacity-0 pointer-events-none" : ""}`}
                 onClick={handleOpenLetter}
               >
                 {/* WADAH AMPLOP SURAT BERSIH & ELEGAN */}
-                <div className="relative w-full h-[220px] sm:h-[245px] rounded-3xl bg-gradient-to-br from-[#faf7f2] via-[#f4eee3] to-[#e8dec9] border border-amber-300/40 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85),0_0_35px_rgba(244,63,94,0.12)] overflow-visible">
+                <div className="relative w-full h-[200px] sm:h-[245px] rounded-3xl bg-gradient-to-br from-[#faf7f2] via-[#f4eee3] to-[#e8dec9] border border-amber-300/40 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85),0_0_35px_rgba(244,63,94,0.12)] overflow-visible">
                   
                   {/* Garis Border Foil Emas Tipis */}
                   <div className="absolute inset-2 rounded-2xl border border-amber-400/30 pointer-events-none" />
 
-                  {/* KERTAS SURAT DALAM AMPLOP (MELUNCUR KELUAR HANYA SETELAH FLAP DIBUKA) */}
+                  {/* KERTAS SURAT DALAM AMPLOP */}
                   <div
-                    className={`absolute left-3 right-3 sm:left-4 sm:right-4 top-3 h-[180px] sm:h-[200px] rounded-t-2xl bg-[#fdfbf7] border border-stone-200 shadow-md p-4 text-left transition-all duration-700 ease-out z-10 ${
+                    className={`absolute left-3 right-3 sm:left-4 sm:right-4 top-3 h-[170px] sm:h-[200px] rounded-t-2xl bg-[#fdfbf7] border border-stone-200 shadow-md p-3.5 sm:p-4 text-left transition-all duration-700 ease-out z-10 ${
                       paperSliding
-                        ? "-translate-y-36 sm:-translate-y-40 opacity-100 scale-100 shadow-2xl"
+                        ? "-translate-y-32 sm:-translate-y-40 opacity-100 scale-100 shadow-2xl"
                         : "translate-y-8 opacity-0 pointer-events-none scale-95"
                     }`}
                   >
@@ -149,23 +149,27 @@ export default function IntroSequence({ onFinish }) {
                     </p>
                   </div>
 
-                  {/* KANTUNG DEPAN AMPLOP SOLID & BERSIH DENGAN TIPOGRAFI EMAS */}
-                  <div className="absolute inset-0 z-20 rounded-3xl overflow-hidden pointer-events-none flex flex-col justify-end p-5">
+                  {/* KANTUNG DEPAN AMPLOP */}
+                  <div className="absolute inset-0 z-20 rounded-3xl overflow-hidden pointer-events-none flex flex-col justify-end p-4 sm:p-5">
                     <div className="absolute inset-0 bg-gradient-to-t from-[#ede2cf] via-[#f7f2e8] to-[#f4eee3]" />
                     
                     <div className="relative z-20 text-center pb-1">
-                      <h3 className="font-serifTitle text-base sm:text-lg font-bold text-stone-900 leading-snug">
+                      <h3 className="font-serifTitle text-sm sm:text-lg font-bold text-stone-900 leading-snug">
                         Untuk: Agnesh Juliasih, S.Pd.
                       </h3>
                     </div>
                   </div>
 
-                  {/* FLAP PENUTUP AMPLOP 3D (MEMBUKA KE ATAS SAAT DIKLIK) */}
+                  {/* FLAP PENUTUP AMPLOP 3D (CROSS-BROWSER WEBKIT COMPATIBLE) */}
                   <div
-                    className="absolute top-0 left-0 right-0 h-[125px] sm:h-[138px] origin-top transition-transform duration-700 ease-in-out pointer-events-none"
+                    className="absolute top-0 left-0 right-0 h-[115px] sm:h-[138px] origin-top transition-transform duration-700 ease-in-out pointer-events-none"
                     style={{
                       transform: flapOpen ? "rotateX(180deg)" : "rotateX(0deg)",
+                      WebkitTransform: flapOpen ? "rotateX(180deg)" : "rotateX(0deg)",
                       transformStyle: "preserve-3d",
+                      WebkitTransformStyle: "preserve-3d",
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
                       zIndex: flapOpen ? 5 : 30,
                     }}
                   >
@@ -177,14 +181,14 @@ export default function IntroSequence({ onFinish }) {
                     />
                   </div>
 
-                  {/* STEMPEL SEGEL LILIN MERAH KRIMSON MEWAH */}
+                  {/* STEMPEL SEGEL LILIN MERAH */}
                   {!isOpening && (
                     <div
-                      className="absolute top-[96px] sm:top-[106px] left-1/2 -translate-x-1/2 z-40 flex flex-col items-center group transition-transform duration-300 hover:scale-105"
-                      title="Klik untuk membuka surat"
+                      className="absolute top-[88px] sm:top-[106px] left-1/2 -translate-x-1/2 z-40 flex flex-col items-center group transition-transform duration-300 hover:scale-105 active:scale-95"
+                      title="Ketuk untuk membuka surat"
                     >
-                      <div className="relative w-15 h-15 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-rose-600 via-rose-800 to-rose-950 border-2 border-amber-300 shadow-2xl animate-seal-shimmer flex items-center justify-center cursor-pointer">
-                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full border border-amber-300/60 flex flex-col items-center justify-center text-amber-200">
+                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-rose-600 via-rose-800 to-rose-950 border-2 border-amber-300 shadow-2xl animate-seal-shimmer flex items-center justify-center cursor-pointer">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-amber-300/60 flex flex-col items-center justify-center text-amber-200">
                           <span className="text-base sm:text-lg leading-none">🎓</span>
                           <span className="font-serif font-black text-[9px] sm:text-[10px] tracking-wider text-amber-100">
                             AJ
@@ -198,7 +202,7 @@ export default function IntroSequence({ onFinish }) {
               </div>
             )}
 
-            {/* TAHAP 4: SURAT TERBUKA LENGKAP (LEMBARAN KERTAS PARCHMENT MEWAH) */}
+            {/* TAHAP 4: SURAT TERBUKA LENGKAP */}
             {showFullLetter && (
               <div className="w-full animate-letterOpen origin-top">
                 <LetterCard onClose={onFinish} />
