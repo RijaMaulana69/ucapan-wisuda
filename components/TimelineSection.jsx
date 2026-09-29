@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Sparkles } from "lucide-react";
 
-// Algoritma Catmull-Rom Spline ke Cubic Bezier untuk lekukan benang yang 100% luwes dan mengikat alami
-function catmullRomToSpline(points, tension = 0.8) {
+// Algoritma Catmull-Rom Spline ke Cubic Bezier untuk lekukan benang yang luwes dan alami
+function catmullRomToSpline(points, tension = 0.7) {
   if (!points || points.length < 2) return "";
   let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
 
@@ -34,7 +34,7 @@ export default function TimelineSection({ onOpenPhoto }) {
   const [hoverLineInfo, setHoverLineInfo] = useState(null);
   const [ripples, setRipples] = useState([]);
 
-  // Refs untuk Direct DOM Update & High Performance 60FPS Lerp Animation
+  // Direct DOM Refs untuk rendering 60/120 FPS tanpa lag di HP
   const whitePathRef = useRef(null);
   const redLineElRef = useRef(null);
   const redHeadElRef = useRef(null);
@@ -44,8 +44,11 @@ export default function TimelineSection({ onOpenPhoto }) {
   const currentProgressRef = useRef(0);
   const activeNodesRef = useRef([]);
   const animFrameIdRef = useRef(null);
-  const isLoopRunningRef = useRef(false);
+  const isTickingRef = useRef(false);
   const nodeCentersRef = useRef([]);
+  
+  // Cache posisi container untuk 0ns layout queries saat scroll (mencegah Layout Thrashing di HP)
+  const containerMetricsRef = useRef({ top: 0, height: 0, isDesktop: false, spineX: 32 });
 
   // Memicu ripple shockwave saat garis diklik
   const triggerRipple = (y) => {
@@ -62,30 +65,53 @@ export default function TimelineSection({ onOpenPhoto }) {
     const targetRow = containerRef.current.querySelector(`[data-timeline-row][data-chapter-id="${chapId}"]`);
     if (targetRow) {
       const rect = targetRow.getBoundingClientRect();
-      const nodeRelY = rect.top - containerRef.current.getBoundingClientRect().top + rect.height / 2;
+      const nodeRelY = rect.top - containerRef.current.getBoundingClientRect().top + 24;
       triggerRipple(nodeRelY);
       targetRow.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
 
-  // Update container dimensions on mount & window resize
+  // Cache posisi node dan ukuran container
   const updateSize = useCallback(() => {
-    if (containerRef.current) {
-      const w = containerRef.current.offsetWidth;
-      const h = containerRef.current.offsetHeight;
-      const isDesk = window.innerWidth >= 768;
-      setDimensions((prev) => {
-        if (prev.width === w && prev.height === h && prev.isDesktop === isDesk) return prev;
-        return { width: w, height: h, isDesktop: isDesk };
+    if (!containerRef.current) return;
+    const w = containerRef.current.offsetWidth;
+    const h = containerRef.current.offsetHeight;
+    const isDesk = window.innerWidth >= 768;
+    const spineX = isDesk ? w / 2 : (window.innerWidth < 640 ? 24 : 32);
+
+    const cRect = containerRef.current.getBoundingClientRect();
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+    containerMetricsRef.current = {
+      top: cRect.top + scrollY,
+      height: h,
+      width: w,
+      isDesktop: isDesk,
+      spineX,
+    };
+
+    // Cache node milestones Y
+    const nodes = containerRef.current.querySelectorAll("[data-node]");
+    const list = [];
+    nodes.forEach((node) => {
+      const nRect = node.getBoundingClientRect();
+      list.push({
+        id: node.getAttribute("data-node"),
+        y: nRect.top - cRect.top + nRect.height / 2,
       });
-    }
+    });
+    nodeCentersRef.current = list;
+
+    setDimensions((prev) => {
+      if (prev.width === w && prev.height === h && prev.isDesktop === isDesk) return prev;
+      return { width: w, height: h, isDesktop: isDesk };
+    });
   }, []);
 
   useEffect(() => {
     updateSize();
     window.addEventListener("resize", updateSize);
 
-    // ResizeObserver memantau perubahan ukuran dinamis saat gambar selesai loading
     let ro = null;
     if (typeof ResizeObserver !== "undefined" && containerRef.current) {
       ro = new ResizeObserver(() => {
@@ -107,7 +133,7 @@ export default function TimelineSection({ onOpenPhoto }) {
     };
   }, [updateSize]);
 
-  // OBSERVER SCROLL REVEAL HALUS & SINEMATIK SAAT DISCROLL KE BAWAH (HP & DESKTOP)
+  // Observer Scroll Reveal halus & modern
   useEffect(() => {
     if (!containerRef.current) return;
     const rows = containerRef.current.querySelectorAll("[data-timeline-row]");
@@ -125,8 +151,8 @@ export default function TimelineSection({ onOpenPhoto }) {
         });
       },
       {
-        rootMargin: "0px 0px -8% 0px",
-        threshold: 0.12,
+        rootMargin: "0px 0px -10% 0px",
+        threshold: 0.1,
       }
     );
 
@@ -134,13 +160,14 @@ export default function TimelineSection({ onOpenPhoto }) {
     return () => observer.disconnect();
   }, [dimensions.height]);
 
-  // Generate kurva benang putih alami yang MENGIKAT KARTU saat discroll ke bawah
+  // Kalkulasi Kurva Benang Putih (Desktop = Zigzag mengikat, Mobile = Mengalir anggun di sepanjang garis kiri)
   useEffect(() => {
     if (!containerRef.current || dimensions.width === 0 || dimensions.height === 0) return;
 
     const containerRect = containerRef.current.getBoundingClientRect();
     const rows = containerRef.current.querySelectorAll("[data-timeline-row]");
-    const cX = dimensions.width / 2;
+    const isDesk = dimensions.isDesktop;
+    const cX = isDesk ? dimensions.width / 2 : containerMetricsRef.current.spineX;
     const waypoints = [];
 
     rows.forEach((row, idx) => {
@@ -159,60 +186,48 @@ export default function TimelineSection({ onOpenPhoto }) {
       const cMidX = (cLeft + cRight) / 2;
       const cMidY = (cTop + cBottom) / 2;
 
-      if (dimensions.isDesktop) {
+      if (isDesk) {
         const isLeft = cMidX < cX;
 
         if (idx === 0) {
-          // Titik mula benang turun dari atas
           waypoints.push({ x: cMidX + (isLeft ? -20 : 20), y: cTop - 30 });
         }
 
         if (isLeft) {
-          // POLA MENGIKAT KARTU KIRI:
-          // 1. Benang masuk dari atas menyilang ke sudut kiri luar
           waypoints.push({ x: cLeft - 18, y: cTop + 15 });
-          // 2. Membalut dan mengikat sisi luar kartu ke bawah
           waypoints.push({ x: cLeft - 32, y: cMidY });
-          // 3. Melingkar di bawah kartu membentuk ikatan tali
           waypoints.push({ x: cLeft - 12, y: cBottom + 18 });
           waypoints.push({ x: cMidX + 15, y: cBottom + 26 });
           waypoints.push({ x: cRight + 12, y: cBottom + 8 });
-          // 4. Mengikat masuk ke node tengah sebagai simpul pengait
           waypoints.push({ x: cX - 16, y: nodeRelY + 12 });
         } else {
-          // POLA MENGIKAT KARTU KANAN:
-          // 1. Benang masuk dari atas menyilang ke sudut kanan luar
           waypoints.push({ x: cRight + 18, y: cTop + 15 });
-          // 2. Membalut dan mengikat sisi luar kartu ke bawah
           waypoints.push({ x: cRight + 32, y: cMidY });
-          // 3. Melingkar di bawah kartu membentuk ikatan tali
           waypoints.push({ x: cRight + 12, y: cBottom + 18 });
           waypoints.push({ x: cMidX - 15, y: cBottom + 26 });
           waypoints.push({ x: cLeft - 12, y: cBottom + 8 });
-          // 4. Mengikat masuk ke node tengah sebagai simpul pengait
           waypoints.push({ x: cX + 16, y: nodeRelY + 12 });
         }
       } else {
-        // POLA MENGIKAT KARTU PADA MOBILE:
-        const swingDirection = idx % 2 === 0 ? -1 : 1;
-        const outerX = swingDirection === -1 ? Math.max(14, cLeft - 20) : Math.min(dimensions.width - 14, cRight + 20);
-        const innerX = swingDirection === -1 ? Math.min(dimensions.width - 14, cRight + 14) : Math.max(14, cLeft - 14);
-
+        // MOBILE SPLINE: Mengalir anggun di sisi kiri tanpa zig-zag ekstrem yang membuat lag
         if (idx === 0) {
-          waypoints.push({ x: cMidX, y: cTop - 25 });
+          waypoints.push({ x: cX, y: Math.max(0, nodeRelY - 35) });
         }
 
-        // Benang melingkari sekeliling kartu tengah (mengikat dari luar lalu membalut ke bawah)
-        waypoints.push({ x: outerX, y: cTop + 20 });
-        waypoints.push({ x: outerX + (swingDirection * 12), y: cMidY });
-        waypoints.push({ x: cMidX, y: cBottom + 24 });
-        waypoints.push({ x: innerX, y: cBottom + 10 });
-        waypoints.push({ x: cX + (swingDirection * -12), y: nodeRelY + 16 });
+        // 1. Melewati node milestone
+        waypoints.push({ x: cX, y: nodeRelY });
+        // 2. Melengkung halus merangkul tepi kartu
+        waypoints.push({ x: cX + 14, y: nodeRelY + 30 });
+        // 3. Mengalir lembut di samping kartu
+        waypoints.push({ x: cX + 8, y: cMidY });
+        // 4. Menutup lengkungan di bawah kartu menuju node berikutnya
+        waypoints.push({ x: cX, y: cBottom + 18 });
       }
     });
 
     if (waypoints.length > 1) {
-      const pathD = catmullRomToSpline(waypoints, 0.8);
+      const tension = isDesk ? 0.75 : 0.6;
+      const pathD = catmullRomToSpline(waypoints, tension);
       setSpiralPath(pathD);
     }
   }, [dimensions]);
@@ -228,73 +243,46 @@ export default function TimelineSection({ onOpenPhoto }) {
           whitePathRef.current.style.strokeDashoffset = `${len * (1 - currentProgressRef.current)}`;
         }
       } catch (e) {
-        totalLengthRef.current = dimensions.height * 2.8;
+        totalLengthRef.current = dimensions.height * 2.5;
       }
     }
   }, [spiralPath, dimensions.height]);
 
-  // ENGINE LERP 60FPS / 120FPS DENGAN CACHED MILESTONE (ZERO LAYOUT THRASHING)
+  // HIGH PERFORMANCE HARDWARE ACCELERATED RENDER LOOP (ZERO LAYOUT REFLOW)
   useEffect(() => {
     let isRunning = true;
 
-    // Cache posisi Y setiap milestone sekali saja (Zero Layout Thrashing)
-    const cacheNodePositions = () => {
-      if (!containerRef.current) return;
-      const cRect = containerRef.current.getBoundingClientRect();
-      const nodes = containerRef.current.querySelectorAll("[data-node]");
-      const list = [];
-      nodes.forEach((node) => {
-        const nRect = node.getBoundingClientRect();
-        list.push({
-          id: node.getAttribute("data-node"),
-          y: nRect.top - cRect.top + nRect.height / 2,
-        });
-      });
-      nodeCentersRef.current = list;
-    };
-
-    cacheNodePositions();
-
-    // Loop animasi lerp halus berkesinambungan
-    const renderLoop = () => {
-      if (!isRunning) return;
-
-      const target = targetProgressRef.current;
-      const cur = currentProgressRef.current;
-      const next = cur + (target - cur) * 0.16;
-      const isSettled = Math.abs(target - next) < 0.0002;
-      currentProgressRef.current = isSettled ? target : next;
-
-      const progress = currentProgressRef.current;
-      const containerH = containerRef.current ? containerRef.current.offsetHeight : dimensions.height;
+    const updateVisuals = (progress) => {
+      const metrics = containerMetricsRef.current;
+      const containerH = metrics.height || (containerRef.current ? containerRef.current.offsetHeight : dimensions.height);
       const currentY = containerH * progress;
-      const isLineActive = progress > 0.002;
+      const isLineActive = progress > 0.001;
 
-      // 1. Update Benang Putih Mengikat
+      // 1. Update Benang Putih Mengikat (Zero Latency Direct DOM Style)
       if (whitePathRef.current && totalLengthRef.current > 0) {
         const offset = totalLengthRef.current * (1 - progress);
         whitePathRef.current.style.strokeDashoffset = `${offset}`;
         whitePathRef.current.style.opacity = isLineActive ? "0.95" : "0";
       }
 
-      // 2. Update Garis Merah Tengah
+      // 2. Update Garis Merah Menyala (Direct GPU height & opacity)
       if (redLineElRef.current) {
         redLineElRef.current.style.height = `${isLineActive ? currentY : 0}px`;
         redLineElRef.current.style.opacity = isLineActive ? "1" : "0";
       }
 
-      // 3. Update Ujung Kepala Energi Merah Modern (Akselerasi GPU Hardware translate3d)
+      // 3. Update Kepala Laser Merah (Transform3d GPU Composite)
       if (redHeadElRef.current) {
         redHeadElRef.current.style.transform = `translate3d(-50%, ${currentY}px, 0)`;
         redHeadElRef.current.style.opacity = isLineActive ? "1" : "0";
       }
 
-      // 4. Update Milestone Active State dari Cache (Komputasi 0 microsecond, bebas reflow)
+      // 4. Update Milestone Active State
       const centers = nodeCentersRef.current;
       if (centers && centers.length > 0) {
         const currentActive = [];
         for (let i = 0; i < centers.length; i++) {
-          if (currentY >= centers[i].y - 20) {
+          if (currentY >= centers[i].y - 25) {
             currentActive.push(centers[i].id);
           }
         }
@@ -308,50 +296,69 @@ export default function TimelineSection({ onOpenPhoto }) {
           setActiveNodes(currentActive);
         }
       }
-
-      // Jika pergerakan sudah berhenti sempurna, tidurkan loop untuk menghemat 100% baterai & CPU HP
-      if (isSettled) {
-        isLoopRunningRef.current = false;
-        return;
-      }
-
-      animFrameIdRef.current = requestAnimationFrame(renderLoop);
     };
 
-    // Scroll listener: merekam progress scroll linimasa langsung saat scroll ke bawah
+    // Fungsi Render Frame yang sinkron dengan display refresh rate
+    const renderFrame = () => {
+      if (!isRunning) return;
+      isTickingRef.current = false;
+
+      const target = targetProgressRef.current;
+      const cur = currentProgressRef.current;
+      const isMobile = !containerMetricsRef.current.isDesktop;
+
+      // Di HP: respon seketika (1:1 instan) agar garis TIDAK PERNAH tertinggal saat scrolling!
+      // Di Desktop: lerp halus 0.35 untuk nuansa sinematik
+      if (isMobile) {
+        currentProgressRef.current = target;
+        updateVisuals(target);
+      } else {
+        const next = cur + (target - cur) * 0.35;
+        const isSettled = Math.abs(target - next) < 0.0005;
+        currentProgressRef.current = isSettled ? target : next;
+        updateVisuals(currentProgressRef.current);
+
+        if (!isSettled) {
+          isTickingRef.current = true;
+          animFrameIdRef.current = requestAnimationFrame(renderFrame);
+        }
+      }
+    };
+
+    // Scroll Handler MURNI: 0 Mikrodetik, TIDAK PERNAH memanggil getBoundingClientRect() saat scroll!
     const handleScroll = () => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+      const metrics = containerMetricsRef.current;
+      if (!metrics || metrics.height === 0) return;
+
       const windowH = window.innerHeight;
-      
-      const focalY = windowH * 0.65;
-      const progressPx = focalY - rect.top;
-      const totalPx = rect.height - windowH * 0.2;
+      // Titik pemicu fokus (55% di mobile untuk respon cepat seketika)
+      const focalY = scrollY + (metrics.isDesktop ? windowH * 0.65 : windowH * 0.55);
+      const progressPx = focalY - metrics.top;
+      const totalPx = metrics.height - (metrics.isDesktop ? windowH * 0.2 : windowH * 0.1);
 
       let ratio = totalPx > 0 ? progressPx / totalPx : 0;
       ratio = Math.max(0, Math.min(1, ratio));
       targetProgressRef.current = ratio;
 
-      // Bangunkan render loop jika sedang istirahat
-      if (!isLoopRunningRef.current) {
-        isLoopRunningRef.current = true;
-        animFrameIdRef.current = requestAnimationFrame(renderLoop);
+      if (!isTickingRef.current) {
+        isTickingRef.current = true;
+        animFrameIdRef.current = requestAnimationFrame(renderFrame);
       }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
+    // Panggil sekali untuk sinkronisasi posisi awal
     handleScroll();
 
     return () => {
       isRunning = false;
-      isLoopRunningRef.current = false;
       window.removeEventListener("scroll", handleScroll);
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     };
   }, [dimensions]);
 
-  // LINE TENGAH: Selalu berada di tengah container
-  const centerX = dimensions.width / 2;
+  const spineX = dimensions.isDesktop ? dimensions.width / 2 : containerMetricsRef.current.spineX;
 
   // Data 5 Babak Perjalanan
   const chapters = [
@@ -402,7 +409,7 @@ export default function TimelineSection({ onOpenPhoto }) {
     },
   ];
 
-  // Handle hover kursor di sepanjang garis tengah untuk deteksi babak terdekat
+  // Handle hover di sepanjang garis tengah untuk deteksi babak terdekat (Desktop)
   const handleLineMouseMove = (e) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -433,7 +440,7 @@ export default function TimelineSection({ onOpenPhoto }) {
     setHoverLineInfo(null);
   };
 
-  // Handle klik di jalur garis tengah untuk smooth scroll langsung ke titik tersebut
+  // Handle klik di jalur garis untuk navigasi instan
   const handleLineClick = (e) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -448,13 +455,15 @@ export default function TimelineSection({ onOpenPhoto }) {
   };
 
   return (
-    <section ref={containerRef} className="relative z-10 max-w-4xl mx-auto px-3 sm:px-6 pt-8 sm:pt-12 pb-36">
-      {/* ── TRACK GARIS TENGAH LINIMASA (BERWARNA MERAH MENYALA AKTIF SAAT SCROLL KE BAWAH) ── */}
-      <div className="absolute top-0 bottom-24 left-1/2 -translate-x-1/2 pointer-events-none z-0 w-[5px]">
-        {/* Track Abu-Abu Dasar (Bagian Bawah yang Belum Tersentuh Scroll Tetap Abu-Abu) */}
-        <div className="absolute inset-0 w-full bg-zinc-700/60 rounded-full" />
+    <section ref={containerRef} className="relative z-10 max-w-4xl mx-auto px-3 sm:px-6 pt-6 sm:pt-12 pb-36">
+      {/* ── TRACK GARIS VERTIKAL LINIMASA (RESPONSIF: KIRI DI MOBILE, TENGAH DI DESKTOP) ── */}
+      <div
+        className="absolute top-0 bottom-24 left-[24px] sm:left-[32px] md:left-1/2 -translate-x-1/2 pointer-events-none z-0 w-[4px] sm:w-[5px]"
+      >
+        {/* Track Abu-Abu Dasar */}
+        <div className="absolute inset-0 w-full bg-zinc-800/80 rounded-full" />
 
-        {/* Garis Merah Menyala Aktif Mengalir ke Bawah Saat Scroll */}
+        {/* Garis Merah Menyala Aktif Mengalir ke Bawah Mengikuti Scroll Real-Time */}
         <div
           ref={redLineElRef}
           className="absolute top-0 left-0 right-0 w-full rounded-full transition-opacity duration-150"
@@ -462,7 +471,7 @@ export default function TimelineSection({ onOpenPhoto }) {
             height: "0px",
             opacity: 0,
             background: "linear-gradient(to bottom, #fb7185, #ef4444, #dc2626)",
-            boxShadow: "0 0 14px #ef4444, 0 0 28px rgba(239, 68, 68, 0.8), 0 0 45px rgba(220, 38, 38, 0.5)",
+            boxShadow: "0 0 12px #ef4444, 0 0 24px rgba(239, 68, 68, 0.75)",
           }}
         />
 
@@ -474,11 +483,11 @@ export default function TimelineSection({ onOpenPhoto }) {
         >
           <div className="relative flex items-center justify-center">
             {/* Gelombang Radar Merah */}
-            <div className="absolute w-9 h-9 rounded-full bg-red-500/35 animate-ping" />
+            <div className="absolute w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-500/40 animate-ping" />
             {/* Cincin Berpendar Presisi */}
-            <div className="w-5 h-5 rounded-full border-2 border-red-500 bg-red-950/90 shadow-[0_0_15px_#ef4444] animate-pulse" />
-            {/* Titik Inti Cahaya Merah Modern */}
-            <div className="absolute w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
+            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-red-500 bg-red-950/90 shadow-[0_0_12px_#ef4444] animate-pulse" />
+            {/* Titik Inti Cahaya Putih */}
+            <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-white shadow-[0_0_6px_#ffffff]" />
           </div>
         </div>
       </div>
@@ -489,14 +498,7 @@ export default function TimelineSection({ onOpenPhoto }) {
           className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
           viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
         >
-          <defs>
-            {/* Bayangan Alami Benang Putih Mengikat */}
-            <filter id="white-thread-shadow" x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="rgba(0,0,0,0.55)" />
-            </filter>
-          </defs>
-
-          {/* 1. Track Dasar Benang Putih Mengitari Kartu */}
+          {/* Track Dasar Benang Putih */}
           {spiralPath && (
             <path
               d={spiralPath}
@@ -506,7 +508,7 @@ export default function TimelineSection({ onOpenPhoto }) {
             />
           )}
 
-          {/* 2. BENANG PUTIH YANG MENGIKAT KARTU KETIKA DISCROLL KE BAWAH */}
+          {/* Benang Putih Mengikat Kartu saat Discroll (GPU Accelerated) */}
           {spiralPath && (
             <path
               ref={whitePathRef}
@@ -516,7 +518,6 @@ export default function TimelineSection({ onOpenPhoto }) {
               strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter="url(#white-thread-shadow)"
               style={{
                 opacity: 0.95,
                 willChange: "stroke-dashoffset",
@@ -524,28 +525,28 @@ export default function TimelineSection({ onOpenPhoto }) {
             />
           )}
 
-          {/* 6. GELOMBANG RIPPLE SHOCKWAVE SAAT GARIS TENGAH DIKLIK */}
+          {/* Gelombang Ripple Shockwave */}
           {ripples.map((rip) => (
-            <g key={rip.id} transform={`translate(${centerX}, ${rip.y})`}>
-              <circle cx="0" cy="0" r="22" fill="none" stroke="#ef4444" strokeWidth="2.5" className="animate-ping" />
-              <circle cx="0" cy="0" r="38" fill="none" stroke="#fbbf24" strokeWidth="1.5" className="animate-ping" style={{ animationDuration: "1.2s" }} />
+            <g key={rip.id} transform={`translate(${spineX}, ${rip.y})`}>
+              <circle cx="0" cy="0" r="20" fill="none" stroke="#ef4444" strokeWidth="2.5" className="animate-ping" />
+              <circle cx="0" cy="0" r="34" fill="none" stroke="#fbbf24" strokeWidth="1.5" className="animate-ping" style={{ animationDuration: "1.2s" }} />
             </g>
           ))}
 
-          {/* 7. INDIKATOR KURSOR INTERAKTIF MENGIKUTI HOVER DI GARIS TENGAH */}
-          {hoverLineInfo && (
-            <g transform={`translate(${centerX}, ${hoverLineInfo.y})`} className="pointer-events-none transition-transform duration-75">
+          {/* Indikator Hover Interaktif (Desktop) */}
+          {hoverLineInfo && dimensions.isDesktop && (
+            <g transform={`translate(${spineX}, ${hoverLineInfo.y})`} className="pointer-events-none transition-transform duration-75">
               <circle cx="0" cy="0" r="14" fill="rgba(239, 68, 68, 0.25)" className="animate-ping" />
               <circle cx="0" cy="0" r="8" fill="none" stroke="#ef4444" strokeWidth="2" className="animate-pulse" />
               <circle cx="0" cy="0" r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
             </g>
           )}
 
-          {/* 8. HIT AREA INTERAKTIF DI SEPANJANG GARIS TENGAH (SCRUBBING & CLICK-TO-JUMP) */}
+          {/* Hit Area Interaktif Sepanjang Garis */}
           <rect
-            x={centerX - 24}
+            x={spineX - 22}
             y={0}
-            width={48}
+            width={44}
             height={dimensions.height}
             fill="transparent"
             className="cursor-pointer"
@@ -557,12 +558,12 @@ export default function TimelineSection({ onOpenPhoto }) {
         </svg>
       )}
 
-      {/* FLOATING TOOLTIP BABAK SAAT HOVER DI JALUR GARIS TENGAH */}
-      {hoverLineInfo && hoverLineInfo.chapter && (
+      {/* Floating Tooltip Babak saat Hover (Desktop) */}
+      {hoverLineInfo && hoverLineInfo.chapter && dimensions.isDesktop && (
         <div
           className="absolute z-30 pointer-events-none transition-all duration-75 ease-out hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-950/95 border border-red-500/80 text-white text-[11px] font-mono shadow-[0_0_25px_rgba(239,68,68,0.45)] backdrop-blur-md -translate-y-1/2 whitespace-nowrap"
           style={{
-            left: `${centerX + 26}px`,
+            left: `${spineX + 26}px`,
             top: `${hoverLineInfo.y}px`,
           }}
         >
@@ -572,8 +573,8 @@ export default function TimelineSection({ onOpenPhoto }) {
         </div>
       )}
 
-      {/* Chapters Grid */}
-      <div className="space-y-16 sm:space-y-20 md:space-y-24 relative z-10">
+      {/* Chapters List */}
+      <div className="space-y-12 sm:space-y-16 md:space-y-24 relative z-10">
         {chapters.map((chap) => {
           const isActive = activeNodes.includes(chap.id);
           const isRevealed = revealedChapters.includes(chap.id);
@@ -583,110 +584,118 @@ export default function TimelineSection({ onOpenPhoto }) {
               key={chap.id}
               data-timeline-row
               data-chapter-id={chap.id}
-              className={`relative flex flex-col md:flex-row items-center gap-5 sm:gap-8 md:gap-12 transition-all duration-700 ${
+              className={`relative w-full transition-all duration-500 ${
                 chap.reverse ? "md:flex-row-reverse" : ""
               }`}
             >
-              {/* Milestone Node Badge (Tombol Interaktif Menuju Babak Ini - Rapi di Mobile & Desktop) */}
+              {/* Milestone Node Badge (Tombol Bulat 01, 02, dst. - Menempel Presisi di Garis) */}
               <button
                 type="button"
                 onClick={() => scrollToChapter(chap.id)}
                 title={`Klik untuk melompat ke ${chap.tag}`}
                 data-node={chap.id}
-                className={`relative mb-1 md:mb-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-1/2 md:-translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm tracking-wider z-20 cursor-pointer select-none transform-gpu transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-2xl group hover:scale-125 hover:border-red-400 active:scale-95 ${
-                  isRevealed ? "opacity-100 scale-100 blur-0" : "opacity-0 scale-75 blur-sm"
+                className={`absolute left-[24px] sm:left-[32px] md:left-1/2 -translate-x-1/2 top-0 md:top-1/2 md:-translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm tracking-wider z-20 cursor-pointer select-none transform-gpu transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-2xl group hover:scale-125 hover:border-red-400 active:scale-95 ${
+                  isRevealed ? "opacity-100 scale-100" : "opacity-0 scale-75"
                 } ${
                   isActive
-                    ? "bg-zinc-950/95 border-2 border-red-500 text-white scale-110 shadow-red-500/60 shadow-lg ring-4 ring-red-500/25"
-                    : "bg-zinc-950/85 backdrop-blur-xl border border-white/20 text-zinc-400 hover:text-white hover:border-white/40"
+                    ? "bg-zinc-950 border-2 border-red-500 text-white scale-110 shadow-red-500/60 shadow-lg ring-4 ring-red-500/25"
+                    : "bg-zinc-950/90 backdrop-blur-xl border border-white/20 text-zinc-400 hover:text-white hover:border-white/40"
                 }`}
               >
                 <span>0{chap.id}</span>
                 {/* Tooltip Mini Hover di Node */}
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:flex items-center px-2.5 py-1 rounded-md bg-zinc-950 border border-red-500/70 text-white text-[10px] font-mono whitespace-nowrap shadow-xl pointer-events-none">
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden md:group-hover:flex items-center px-2.5 py-1 rounded-md bg-zinc-950 border border-red-500/70 text-white text-[10px] font-mono whitespace-nowrap shadow-xl pointer-events-none">
                   Lompat ke Babak 0{chap.id}
                 </div>
               </button>
 
-              {/* Teks Card Grid (Animasi Smooth Slide Up Reveal dengan Clean Modern Blur) */}
+              {/* Konten Kartu Babak: Di Mobile tampil luas di kanan garis (pl-14/pl-16), di Desktop simetris */}
               <div
-                data-timeline-card
-                className={`w-full md:w-1/2 pt-0 md:pt-0 transform-gpu transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                  isRevealed
-                    ? "opacity-100 translate-y-0 scale-100 blur-0"
-                    : "opacity-0 translate-y-8 scale-[0.96] blur-[6px]"
-                } ${
-                  chap.reverse
-                    ? "md:pl-10 text-center md:text-left"
-                    : "md:pr-10 text-center md:text-right"
+                className={`pl-14 sm:pl-16 md:pl-0 w-full flex flex-col md:flex-row items-center gap-4 sm:gap-6 md:gap-12 ${
+                  chap.reverse ? "md:flex-row-reverse" : ""
                 }`}
               >
+                {/* Teks Card Grid (Animasi Smooth Slide Up GPU Composite Murni dengan Clean Glass Blur) */}
                 <div
-                  className={`bg-zinc-900/85 backdrop-blur-xl border rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-500 relative group overflow-hidden max-w-[340px] sm:max-w-md mx-auto md:max-w-none ${
-                    isActive
-                      ? "border-red-500/60 shadow-[0_12px_35px_-8px_rgba(239,68,68,0.35)] -translate-y-1.5 ring-1 ring-red-500/35 bg-gradient-to-br from-zinc-900/95 via-zinc-900/90 to-zinc-950/95"
-                      : "border-white/10 opacity-80 translate-y-0"
+                  data-timeline-card
+                  className={`w-full md:w-1/2 transform-gpu transition-all duration-600 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    isRevealed
+                      ? "opacity-100 translate-y-0 scale-100"
+                      : "opacity-0 translate-y-6 scale-[0.98]"
+                  } ${
+                    chap.reverse
+                      ? "md:pl-10 text-left"
+                      : "md:pr-10 text-left md:text-right"
                   }`}
                 >
                   <div
-                    className={`flex items-center gap-1.5 mb-1 ${
-                      chap.reverse
-                        ? "justify-center md:justify-start"
-                        : "justify-center md:justify-end"
+                    className={`bg-zinc-900/80 backdrop-blur-xl border rounded-2xl p-4 sm:p-5 md:p-6 transition-all duration-400 relative group overflow-hidden max-w-none ${
+                      isActive
+                        ? "border-red-500/60 shadow-[0_10px_30px_-6px_rgba(239,68,68,0.35)] -translate-y-1 ring-1 ring-red-500/35 bg-gradient-to-br from-zinc-900/95 via-zinc-900/90 to-zinc-950/95"
+                        : "border-white/10 opacity-85 translate-y-0"
                     }`}
                   >
-                    <span className="text-[10px] font-bold tracking-widest text-rose-400 uppercase">
-                      {chap.tag}
-                    </span>
-                    {isActive && <Sparkles className="w-3 h-3 text-rose-400 animate-pulse" />}
-                  </div>
-                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-white mt-0.5">{chap.title}</h3>
-                  <p className="text-xs text-zinc-300 mt-2 leading-relaxed">{chap.desc}</p>
-                  <div
-                    className={`mt-3.5 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2 text-[10px] text-zinc-400 font-medium ${
-                      chap.reverse
-                        ? "justify-center md:justify-start"
-                        : "justify-center md:justify-end"
-                    }`}
-                  >
-                    {chap.badges.map((b, i) => (
-                      <span key={i} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
-                        {b}
+                    <div
+                      className={`flex items-center gap-1.5 mb-1 ${
+                        chap.reverse
+                          ? "justify-start"
+                          : "justify-start md:justify-end"
+                      }`}
+                    >
+                      <span className="text-[10px] sm:text-xs font-bold tracking-widest text-rose-400 uppercase">
+                        {chap.tag}
                       </span>
-                    ))}
+                      {isActive && <Sparkles className="w-3 h-3 text-rose-400 animate-pulse" />}
+                    </div>
+                    <h3 className="text-sm sm:text-base md:text-lg font-bold text-white mt-0.5">{chap.title}</h3>
+                    <p className="text-xs sm:text-sm text-zinc-300 mt-2 leading-relaxed">{chap.desc}</p>
+                    <div
+                      className={`mt-3.5 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2 text-[10px] text-zinc-400 font-medium ${
+                        chap.reverse
+                          ? "justify-start"
+                          : "justify-start md:justify-end"
+                      }`}
+                    >
+                      {chap.badges.map((b, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10">
+                          {b}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Foto Card Grid (Animasi Smooth Float Up dengan Stagger Delay & Clean Blur) */}
-              <div
-                data-timeline-photo
-                className={`w-full md:w-1/2 transform-gpu transition-all duration-700 delay-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                  isRevealed
-                    ? "opacity-100 translate-y-0 scale-100 blur-0"
-                    : "opacity-0 translate-y-10 scale-[0.95] blur-[8px]"
-                } ${
-                  chap.reverse ? "md:pr-10" : "md:pl-10"
-                }`}
-              >
+                {/* Foto Card Grid (Animasi Smooth Float Up GPU Composite Murni) */}
                 <div
-                  onClick={() => onOpenPhoto(chap.image, chap.title)}
-                  className={`cursor-pointer rounded-2xl overflow-hidden p-2 bg-zinc-950/90 border transition-all duration-500 group max-w-[280px] sm:max-w-[320px] md:max-w-[340px] mx-auto md:max-w-none ${
-                    isActive
-                      ? "border-red-500/50 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.85),0_0_20px_rgba(239,68,68,0.2)] -translate-y-1.5 ring-1 ring-red-500/25"
-                      : "border-white/10 opacity-80 translate-y-0"
+                  data-timeline-photo
+                  className={`w-full md:w-1/2 transform-gpu transition-all duration-600 delay-75 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    isRevealed
+                      ? "opacity-100 translate-y-0 scale-100"
+                      : "opacity-0 translate-y-8 scale-[0.98]"
+                  } ${
+                    chap.reverse ? "md:pr-10" : "md:pl-10"
                   }`}
                 >
-                  <div className="w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 relative">
-                    <img
-                      src={chap.image}
-                      alt={chap.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <span className="text-[10px] sm:text-[11px] text-white/95 font-medium tracking-wide">
-                        Klik untuk memperbesar foto
-                      </span>
+                  <div
+                    onClick={() => onOpenPhoto(chap.image, chap.title)}
+                    className={`cursor-pointer rounded-2xl overflow-hidden p-1.5 sm:p-2 bg-zinc-950/90 border transition-all duration-400 group max-w-[280px] sm:max-w-[320px] md:max-w-[340px] md:mx-auto ${
+                      isActive
+                        ? "border-red-500/50 shadow-[0_12px_35px_-8px_rgba(0,0,0,0.85),0_0_20px_rgba(239,68,68,0.2)] -translate-y-1 ring-1 ring-red-500/25"
+                        : "border-white/10 opacity-85 translate-y-0"
+                    }`}
+                  >
+                    <div className="w-full aspect-[4/5] sm:aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 relative">
+                      <img
+                        src={chap.image}
+                        alt={chap.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                        <span className="text-[10px] sm:text-[11px] text-white/95 font-medium tracking-wide">
+                          Ketuk untuk memperbesar foto
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
