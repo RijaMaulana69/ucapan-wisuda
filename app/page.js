@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
 import BackgroundStars from "@/components/BackgroundStars";
 import MusicPlayer from "@/components/MusicPlayer";
 import IntroSequence from "@/components/IntroSequence";
@@ -17,6 +18,18 @@ export default function Home() {
     setIntroFinished(true);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
+
+  // Keyboard accessibility: Escape untuk menutup lightbox atau modal surat
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (lightboxData) setLightboxData(null);
+        else if (showModalLetter) setShowModalLetter(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxData, showModalLetter]);
 
   return (
     <main className="min-h-screen bg-[#090a0f] text-zinc-100 relative selection:bg-rose-500/30 selection:text-rose-300">
@@ -91,13 +104,16 @@ export default function Home() {
             >
               <X className="w-6 h-6" />
             </button>
-            <div className="bg-zinc-950 border border-white/10 p-2 rounded-2xl shadow-2xl max-h-[85vh] flex flex-col items-center">
-              <img
+            <div className="bg-zinc-950 border border-white/10 p-2 sm:p-3 rounded-2xl shadow-2xl max-h-[85vh] flex flex-col items-center">
+              <Image
                 src={lightboxData.src}
                 alt={lightboxData.caption}
-                className="max-h-[75vh] w-auto object-contain rounded-xl"
+                width={800}
+                height={1000}
+                className="max-h-[72vh] w-auto object-contain rounded-xl"
+                priority
               />
-              <p className="text-xs font-semibold text-zinc-300 mt-2.5 text-center">
+              <p className="text-xs sm:text-sm font-semibold text-zinc-300 mt-2.5 text-center">
                 {lightboxData.caption}
               </p>
             </div>

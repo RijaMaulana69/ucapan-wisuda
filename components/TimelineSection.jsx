@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Image from "next/image";
 import { Sparkles } from "lucide-react";
 
 // Algoritma Catmull-Rom Spline ke Cubic Bezier untuk lekukan benang yang luwes dan alami
@@ -352,40 +353,40 @@ export default function TimelineSection({ onOpenPhoto }) {
 
   const spineX = dimensions.isDesktop ? dimensions.width / 2 : containerMetricsRef.current.spineX;
 
-  // Data 5 Babak Perjalanan
+  // Data 5 Babak Perjalanan Studi Agnesh Juliasih
   const chapters = [
     {
       id: "1",
       tag: "Babak 01 • Langkah Awal",
-      title: "Agnesh Juliasih, S.Pd.",
-      desc: "Mengingat kembali hari-hari pertama menginjakkan kaki di dunia perkuliahan. Menyesuaikan diri dengan ritme jadwal baru, tugas kelompok, dan bertemu rekan-rekan baru yang bersama-sama memulai langkah menuju cita-cita.",
-      badges: ["Semester Awal", "Adaptasi & Semangat Belajar"],
+      title: "Langkah Awal & Semangat Belajar",
+      desc: "Mengingat kembali hari-hari pertama menginjakkan kaki di dunia perkuliahan. Menyesuaikan diri dengan ritme jadwal baru, tugas kelompok, dan bertemu rekan-rekan baru yang bersama-sama memulai langkah menuju cita-cita sarjana.",
+      badges: ["Semester Awal", "Adaptasi & Semangat"],
       image: "/image4.jpeg",
       reverse: false,
     },
     {
       id: "2",
       tag: "Babak 02 • Praktik Lapangan",
-      title: "Agnesh Juliasih, S.Pd.",
-      desc: "Momen berharga saat pertama kali berdiri di hadapan siswa di ruang kelas. Mengasah kesabaran, menyusun perangkat ajar, dan merasakan panggilan tanggung jawab nyata sebagai seorang calon guru.",
-      badges: ["Pengabdian Pendidikan"],
+      title: "Praktik Mengajar & Dedikasi Calon Guru",
+      desc: "Momen berharga saat pertama kali berdiri di hadapan siswa di ruang kelas. Mengasah kesabaran, menyusun perangkat ajar, dan merasakan panggilan tanggung jawab nyata sebagai seorang calon pendidik.",
+      badges: ["PPL", "Pengabdian Pendidikan"],
       image: "/image2.jpeg",
       reverse: true,
     },
     {
       id: "3",
       tag: "Babak 03 • Masa Ujian & Riset",
-      title: "Agnesh Juliasih, S.Pd.",
-      desc: "Melewati fase riset, diskusi mendalam bersama dosen pembimbing, dan malam-malam penyusunan naskah hingga akhirnya dinyatakan lulus di hadapan dewan penguji dengan hasil yang memuaskan.",
-      badges: ["Sidang Skripsi Selesai"],
+      title: "Perjuangan Riset & Sidang Skripsi",
+      desc: "Melewati fase riset mendalam, diskusi intensif bersama dosen pembimbing, dan malam-malam penyusunan naskah hingga akhirnya dinyatakan lulus di hadapan dewan penguji dengan hasil yang memuaskan.",
+      badges: ["Sidang Skripsi", "Lulus Ujian Sarjana"],
       image: "/image5.jpeg",
       reverse: false,
     },
     {
       id: "4",
       tag: "Babak 04 • Puncak Kelulusan",
-      title: "Agnesh Juliasih, S.Pd.",
-      desc: "Akhirnya resmi menyandang gelar baru! Hari ini jadi saksi rasa bangga orang-orang terdekat yang selalu mendukungmu dari awal hingga sampai di panggung kelulusan ini.",
+      title: "Puncak Toga & Resmi Sarjana Pendidikan",
+      desc: "Akhirnya resmi menyandang gelar Sarjana Pendidikan (S.Pd.)! Hari kelulusan ini jadi saksi rasa bangga orang-orang terdekat yang selalu mendukungmu dari awal hingga sampai di panggung kehormatan ini.",
       badges: ["Sarjana Pendidikan", "Pencapaian Studi"],
       image: "/image3.jpeg",
       reverse: true,
@@ -393,9 +394,9 @@ export default function TimelineSection({ onOpenPhoto }) {
     {
       id: "5",
       tag: "Babak 05 • Langkah Berikutnya",
-      title: "Agnesh Juliasih, S.Pd.",
-      desc: "Selamat melangkah ke dunia nyata! Terus melangkah dengan percaya diri, nikmati setiap proses barunya, dan semoga sukses selalu menyertai jalanmu, Agnesh.",
-      badges: ["Langkah Berikutnya"],
+      title: "Gerbang Masa Depan Gemilang",
+      desc: "Selamat melangkah ke dunia baru! Teruslah melangkah dengan penuh percaya diri, nikmati setiap prosesnya, dan semoga jalan kesuksesan, kebahagiaan, dan berkah selalu menyertaimu, Agnesh Juliasih, S.Pd.",
+      badges: ["Langkah Berikutnya", "Sukses Menanti"],
       image: "/image1.jpeg",
       reverse: false,
     },
@@ -676,11 +677,14 @@ export default function TimelineSection({ onOpenPhoto }) {
                     }`}
                   >
                     <div className="w-full aspect-[4/5] sm:aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 relative">
-                      <img
+                      <Image
                         src={chap.image}
                         alt={chap.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 640px) 280px, (max-width: 768px) 320px, 340px"
+                        className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                        priority={chap.id === "1"}
+                        loading={chap.id === "1" ? "eager" : "lazy"}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                         <span className="text-[10px] sm:text-[11px] text-white/95 font-medium tracking-wide">

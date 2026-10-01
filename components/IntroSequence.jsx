@@ -85,6 +85,15 @@ export default function IntroSequence({ onFinish }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto px-3 py-3 sm:py-6 sm:px-6 bg-[#090a0f]/95 backdrop-blur-2xl flex flex-col items-center justify-center transition-opacity duration-700">
+      {/* Tombol Lewati Intro Halus */}
+      <button
+        onClick={onFinish}
+        className="fixed top-4 right-4 z-50 text-[11px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition backdrop-blur-md cursor-pointer active:scale-95"
+        title="Lewati intro langsung ke linimasa"
+      >
+        Lewati Intro ✕
+      </button>
+
       <div className="relative z-10 w-full max-w-xl mx-auto flex flex-col items-center justify-center text-center my-auto">
         
         {/* TAHAP 1: COUNTDOWN BESAR & BERSIH */}

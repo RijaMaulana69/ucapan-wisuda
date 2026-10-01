@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Play, Pause, SkipBack, SkipForward, ChevronDown, Heart, Music2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Play, Pause, SkipBack, SkipForward, ChevronDown, Heart, Music2, Volume2, VolumeX } from "lucide-react";
 
 export default function MusicPlayer({ isVisible }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef(null);
@@ -29,7 +30,7 @@ export default function MusicPlayer({ isVisible }) {
     }
   }, [isVisible]);
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
@@ -37,7 +38,35 @@ export default function MusicPlayer({ isVisible }) {
     } else {
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
-  };
+  }, [isPlaying]);
+
+  const toggleMute = useCallback(() => {
+    if (!audioRef.current) return;
+    const newMuted = !isMuted;
+    audioRef.current.muted = newMuted;
+    setIsMuted(newMuted);
+  }, [isMuted]);
+
+  // Keyboard accessibility shortcuts: Space untuk play/pause, M untuk mute/unmute
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleKeyDown = (e) => {
+      // Abaikan jika fokus sedang berada pada input atau textarea
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        toggleMute();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isVisible, togglePlay, toggleMute]);
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
@@ -78,7 +107,7 @@ export default function MusicPlayer({ isVisible }) {
     <>
       <audio
         ref={audioRef}
-        src="/Taylor Swift.mp3"
+        src={encodeURI("/Taylor Swift.mp3")}
         loop
         preload="auto"
         onTimeUpdate={handleTimeUpdate}
@@ -106,7 +135,7 @@ export default function MusicPlayer({ isVisible }) {
           )}
 
           <img
-            src="/Taylor Swift.jpg"
+            src={encodeURI("/Taylor Swift.jpg")}
             alt="Mini Vinyl"
             className="w-full h-full object-cover rounded-full shadow-inner animate-spin [animation-duration:12s]"
             style={{
@@ -144,30 +173,44 @@ export default function MusicPlayer({ isVisible }) {
           willChange: "transform, opacity",
         }}
       >
-        {/* Header Bar dengan Tombol Minimize */}
+        {/* Header Bar dengan Tombol Mute dan Minimize */}
         <div className="flex items-center justify-between pb-2 px-0.5">
           <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className={`w-1.5 h-1.5 rounded-full ${isPlaying ? "bg-red-500 animate-pulse" : "bg-zinc-600"}`} />
             <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">
               Music Player
             </span>
           </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMinimized(true);
-            }}
-            className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-zinc-300 hover:text-white transition cursor-pointer"
-            title="Kecilkan Pemutar"
-          >
-            <ChevronDown className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleMute();
+              }}
+              className={`w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center transition cursor-pointer ${
+                isMuted ? "text-red-400" : "text-zinc-300 hover:text-white"
+              }`}
+              title={isMuted ? "Bunyikan Musik (M)" : "Bisukan Musik (M)"}
+            >
+              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMinimized(true);
+              }}
+              className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-zinc-300 hover:text-white transition cursor-pointer"
+              title="Kecilkan Pemutar"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* 1. Cover Art Persegi Elegan */}
         <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shadow-lg group">
           <img
-            src="/Taylor Swift.jpg"
+            src={encodeURI("/Taylor Swift.jpg")}
             alt="Taylor Swift Album Art"
             className={`w-full h-full object-cover transition-transform duration-700 ease-out ${
               isPlaying ? "scale-105" : "scale-100"

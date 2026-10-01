@@ -29,8 +29,31 @@ const caveat = Caveat({
 export const metadata = {
   title: "The Graduation Journey — Agnesh Juliasih, S.Pd.",
   description: "Tribute wisuda kelulusan Agnesh Juliasih, S.Pd. Sebuah catatan dedikasi dan perjalanan meraih gelar sarjana.",
+  metadataBase: new URL("https://ucapan-wisuda.vercel.app"),
   icons: {
     icon: "/icon.svg",
+  },
+  openGraph: {
+    title: "The Graduation Journey — Agnesh Juliasih, S.Pd. 🎓",
+    description: "Sebuah catatan perjalanan dan dedikasi hingga resmi meraih gelar Sarjana Pendidikan (S.Pd.).",
+    url: "/",
+    siteName: "Graduation Tribute",
+    images: [
+      {
+        url: "/image3.jpeg",
+        width: 1200,
+        height: 630,
+        alt: "Wisuda Agnesh Juliasih, S.Pd.",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Graduation Journey — Agnesh Juliasih, S.Pd. 🎓",
+    description: "Sebuah catatan perjalanan dan dedikasi hingga resmi meraih gelar Sarjana Pendidikan (S.Pd.).",
+    images: ["/image3.jpeg"],
   },
 };
 

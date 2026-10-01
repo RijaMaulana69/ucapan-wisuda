@@ -47,6 +47,16 @@ export default function LetterCard({ onClose }) {
               Semoga ilmu yang sudah dipelajari bisa kepakai dengan baik ke depannya, dan semoga urusan setelah ini dilancarkan. Sukses terus ya.
             </p>
           </div>
+
+          {/* CATATAN PENUTUP & TANDA TANGAN PERSONAL (FONT CAVEAT) */}
+          <div className="pt-2 pb-1 text-right">
+            <p className="font-caveat text-xl sm:text-2xl text-rose-800 font-semibold leading-tight">
+              Dengan penuh rasa bangga & doa terbaik,
+            </p>
+            <p className="font-caveat text-lg sm:text-xl text-stone-600 mt-0.5">
+              Selamat melangkah ke masa depan! ✨
+            </p>
+          </div>
         </div>
 
       </div>
